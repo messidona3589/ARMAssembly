@@ -1,0 +1,152 @@
+	AREA task2, CODE, READONLY
+	ENTRY
+	
+	ADR r0, list
+	ADR r10, sort
+	ADR r11, order
+	
+	MOV r1, #0  ; left r1=0 
+	MOV r2, #9  ; right r2=9
+	MOV r9, r11 ; write pointer r9
+	MOV r8, r11 ; read pointer r8
+	MOV r7, #0 ; counter=0
+	
+	STR r1, [r9], #4 ; store left index in order
+	STR r2, [r9], #4 ; store right index in order
+	
+merge_sort ; set the ranges into order
+	
+	; if counter==10 goto merge
+	CMP r7, #10
+	BEQ merge
+	
+	; r1 = left, r2 = right
+	LDR r1, [r8], #4
+	LDR r2, [r8], #4
+	
+	; if left==right, counter++ and merge_sort loop
+	CMP r1, r2
+	ADDEQ r7, r7, #1
+	BEQ merge_sort
+	
+	; mid and mid+1
+	ADD r3, r1, r2
+	LSR r3, r3, #1
+	ADD r4, r3, #1
+	
+	; store left, mid, mid+1, right in order
+	STR r1, [r9], #4
+	STR r3, [r9], #4
+	STR r4, [r9], #4
+	STR r2, [r9], #4
+	
+	B merge_sort
+
+merge ; do the sorting
+	
+	; read pointer decrease each time
+	; read right2, left2, right1, left1
+	SUB r9, r9, #4
+	LDR r4, [r9] ; right2
+	SUB r9, r9, #4
+	
+	; if read pointer == order break
+	CMP r9, r11
+	BEQ exit
+	
+	LDR r3, [r9] ; left2
+	SUB r9, r9, #4
+	LDR r2, [r9]  ; right1
+	SUB r9, r9, #4
+	LDR r1, [r9] ; left 1
+	
+	; Set write pointer in sort
+	ADD r8, r1, r10
+	
+loop
+	; if left1 > right1 r4 += r10 and goto left
+	CMP r1, r2
+	ADDGT r4, r4, r10
+	BGT left
+
+	; if left2 > right2 r4 += r10 and goto right
+	CMP r3, r4
+	ADDGT r4, r4, r10
+	BGT right
+	
+	; Get the value of left1 and left2
+	ADD r3, r3, r0
+	ADD r1, r1, r0
+	LDRB r5, [r1]
+	LDRB r6, [r3]
+	SUB r3, r3, r0
+	SUB r1, r1, r0
+	
+	; if left1<left2 write value of left1 and increase 1
+	; else write value of left2 and increase 1
+	CMP r5, r6
+	STRBLT r5, [r8], #1
+	ADDLT r1, r1, #1
+	STRBGT r6, [r8], #1
+	ADDGT r3, r3, #1
+
+	B loop
+
+left
+	; put the remaining right part into sort	
+	ADD r3, r3, r0
+	LDRB r5, [r3]
+	SUB r3, r3, r0
+	ADD r3, r3, #1
+	STRB r5, [r8], #1
+	
+	; if write pointer<=right2 left loop
+	; else goto mod
+	CMP r8, r4
+	BLE left
+	BGT MOD
+
+right
+	; put the remaining left part into sort
+	ADD r1, r1, r0
+	LDRB r5, [r1]
+	SUB r1, r1, r0
+	ADD r1, r1, #1
+	STRB r5, [r8], #1
+
+	; if write pointer <= right2 right loop
+	; else goto mod
+	CMP r8, r4
+	BLE right
+	BGT MOD
+	
+MOD
+	 ; initialize r1 to left1
+	LDR r1, [r9]
+
+UPDATE ; update the sorted values from sort to list
+
+	; if left1>right2 goto merge
+	SUB r4, r4, r10
+	CMP r1, r4
+	ADD r4, r4, r10
+	BGT merge
+	
+	; read value from sort and write in list
+	ADD r5, r1, r0
+	ADD r6, r1, r10
+	LDRB r8, [r6]
+	STRB r8, [r5]
+	ADD r1, r1, #1
+
+	B UPDATE
+	
+exit B exit
+	
+	AREA task2, DATA, READWRITE
+
+list DCB 8, 29, 50, 81, 4, 23, 24, 30, 1, 7
+order DCD 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+sort DCB 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	
+	END
